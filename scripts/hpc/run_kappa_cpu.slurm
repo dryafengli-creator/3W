@@ -14,6 +14,9 @@
 set -euo pipefail
 source ~/.bashrc
 conda activate 3w
+export PYTHONPATH="${HOME}/3W:${PYTHONPATH:-}"
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
 
 PROJECT_ROOT="${HOME}/3W"
 cd "${PROJECT_ROOT}"

@@ -32,6 +32,10 @@ grep -q 'software/miniconda3/bin' ~/.bashrc || \
 # shellcheck disable=SC1091
 source "${CONDA_ROOT}/etc/profile.d/conda.sh"
 
+echo "=== [3b/6] accept conda Terms of Service (required on newer conda) ==="
+conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main 2>/dev/null || true
+conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r 2>/dev/null || true
+
 echo "=== [4/6] create conda env: ${ENV_NAME} (python 3.11) ==="
 if conda env list | awk '{print $1}' | grep -qx "${ENV_NAME}"; then
   echo "env ${ENV_NAME} exists; skip create"
