@@ -1,8 +1,9 @@
 # 3W — 算力阵地：深圳高性能计算公共平台 (SYSU HPC)
 
-> **创建**: 2026-06-25 · **状态**: ✅ 已接入（SSH 免密）
-> **定位**: 本地 = 指挥中心（代码/git/设计/轻量仿真）；**本 HPC = 算力阵地**（大数据下载 + 重计算 + GPU）。
-> **真实性原则 (P1)**: 本文所有规格均来自 2026-06-25 ssh 实测。
+> **创建**: 2026-06-25 · **状态**: ✅ 已接入 + **环境已配置** + Slurm 试跑通过
+> **手册**: `高性能计算公共平台（深圳校区）用户使用手册2025_v2.pdf`
+> **定位**: 本地 = 指挥中心（代码/git/设计）；**本 HPC = 算力阵地**（数据下载 + `sbatch` 重计算）。
+> **真实性原则 (P1)**: 本文所有状态均来自 ssh 实测。
 
 ---
 
@@ -10,69 +11,113 @@
 
 | 项 | 值 |
 |---|---|
-| SSH 别名 | `ssh sysu-hpc`（已配 `~/.ssh/config`，免密） |
-| 登录 IP / 端口 | 172.25.20.103 : 22（**校园私网**，需校园网/VPN 内才可达） |
+| SSH 别名 | `ssh sysu-hpc`（`~/.ssh/config`，免密） |
+| 登录 IP / 端口 | 172.25.20.103 : 22（**校园私网**，需校园网/VPN） |
 | 用户 | `fsby1lyf` |
-| 认证 | 公钥 `id_ed25519`（已装入服务器 `~/.ssh/authorized_keys`） |
-| Web 平台 | http://172.25.20.103:8081/login/ （账号同上） |
-| 登录节点 | `manage2`（64 核 / 124 GB） |
+| Web 平台 | http://172.25.20.103:8081/login/ （数据上传/下载、私有计费中心） |
+| 登录节点 | `manage2`（**禁止跑重计算**） |
+| 项目代码 | `~/3W`（`git clone https://github.com/dryafengli-creator/3W.git`） |
 
-⚠️ **安全**: 初始密码 `dah^%$21GB` 已在聊天明文出现 → **建议尽快在 Web 平台改密码**。免密登录已配好，日常不再需要密码。
-
----
-
-## 2. 硬件 / 调度（Slurm）
-
-Rocky Linux 8.6 · 调度器 **Slurm**（`sbatch`/`squeue`/`sinfo`）。
-⚠️ **重计算必须经 `sbatch`/`salloc` 提交作业，不要在登录节点跑。** 账户有 **1000 元机时奖励**，需省用（CPU 分区便宜，GPU 贵）。
-
-| 分区 | 节点 | 每节点核 | GPU | 用途 |
-|---|---|---|---|---|
-| `x86_64_2cpu`（默认） | 52 | 64 | — | **κ Phase 1 主力（线性代数，便宜）** |
-| `x86_64_4cpu` | 10 | 96 | — | 大内存 CPU 作业 |
-| `x86_64_8cpu` | 2 | 192 | — | 超大 CPU 作业 |
-| `x86_64_gpu800` | 5 | 64 | A800×4（≈A100 80G） | 后期 reTissue / 训练 |
-| `x86_64_gpu6000` | 2 | 32 | A6000×2 | 中等 GPU |
-
-账户 `account1` · QOS `normal`。
+⚠️ **请尽快在 Web 平台修改初始密码**（聊天中曾明文出现）。日常用 SSH 免密即可。
 
 ---
 
-## 3. 存储
+## 2. 硬件 / Slurm（手册 §作业管理）
 
-| 路径 | 文件系统 | 容量 | 用途 |
-|---|---|---|---|
-| `/share/home/fsby1lyf` | Lustre `/share` | 5.3 P（19% 用） | home；3W 数据与环境放这里 |
+Rocky Linux 8.6 · **Slurm** · 5056 CPU 核 · 24 GPU · 6 PB 存储 · 200 Gb IB。
 
-计划项目根：`/share/home/fsby1lyf/3W/`（数据 `data/`、环境 `envs/`、结果 `results/`）。
+| 分区 | GPU | 用途 |
+|---|---|---|
+| `x86_64_2cpu`（**默认**） | — | **κ Phase 1 主力（便宜）** |
+| `x86_64_4cpu` / `x86_64_8cpu` | — | 大内存 CPU |
+| `x86_64_gpu800` | A800×4 | 后期 reTissue / 训练（`--gres=gpu:A800:N`） |
+| `x86_64_gpu6000` | A6000×2 | 中等 GPU |
+
+**规范（手册 §不规范操作）**：
+- ⛔ **管理节点禁止高 CPU/高 IO 任务**（我们在登录节点跑仿真曾触发 OpenBLAS OOM）
+- ✅ **所有重计算必须 `sbatch` 提交**
+- ⛔ 谨慎使用 `--exclusive`（占满整节点，费机时）
+- GPU 分区不要跑纯 CPU 任务
+
+账户 `account1` · QOS `normal` · **新开 1000 元机时奖励** · 管理费 30 元/月 · 免费存储 5 TB。
 
 ---
 
-## 4. 外网 / 软件
+## 3. 环境与目录（手册 §Conda，已配置 ✅）
 
-- **登录节点可直连外网**（实测 2026-06-25）：anaconda 200 / github 200 / pypi 200 ✅；cellxgene 裸 bucket 403（正常，具体数据集 URL + census API 可用）。无 proxy env。
-  → **"服务器拉公共数据"策略成立**（CellxGene census / HCA / 公共空转）。
-- **无预装 anaconda/cuda 模块**（`module avail` 仅基础）→ 需自行在 home 装 **miniconda** + 建 3W 环境（numpy/scipy/scanpy/anndata 等）。
+按手册安装在 **个人目录**，不污染 base：
 
----
+| 路径 | 内容 |
+|---|---|
+| `~/software/miniconda3` | Miniconda（手册推荐 `${HOME}/software/miniconda3`） |
+| conda env **`3w`** | Python 3.11 + numpy/scipy/sklearn/pandas/h5py/scanpy/anndata |
+| `~/3W/` | 项目根（git 仓库） |
+| `~/3W/data/` | 数据（gitignore，服务器拉取） |
+| `~/3W/results/` | 结果 audit |
 
-## 5. 常用命令
-
+**激活环境**：
 ```bash
-ssh sysu-hpc                              # 免密登录
-sinfo -o '%P %a %l %D %c %G'              # 看分区/GPU
-squeue -u fsby1lyf                        # 看自己的作业
-sbatch job.sh                             # 提交作业
-salloc -p x86_64_2cpu -c 8 --time=2:00:00 # 申请交互式 CPU 资源
+source ~/.bashrc
+conda activate 3w
+```
+
+**一键重装**（登录节点，轻量）：
+```bash
+bash ~/3W/scripts/hpc/setup_miniconda.sh
 ```
 
 ---
 
-## 6. 待办（部署 3W）
+## 4. 作业提交（已试跑 ✅）
 
-- [ ] Web 平台改初始密码
-- [ ] 装 miniconda 到 `/share/home/fsby1lyf/miniconda3`
-- [ ] 建 conda 环境 `3w`（python + numpy/scipy/scikit-learn/scanpy/anndata）
-- [ ] 建项目根 `/share/home/fsby1lyf/3W/` 并同步 `threew/` 代码
-- [ ] 写 Slurm 作业模板（CPU 版，用于 κ 真数据实验）
-- [ ] Phase 1 数据：从 CellxGene 拉 ≥3 个组织
+```bash
+cd ~/3W
+git pull
+sbatch scripts/hpc/run_kappa_cpu.slurm
+squeue -u fsby1lyf
+sacct -j <JOBID> --format=JobID,State,ExitCode,Elapsed -n
+```
+
+**试跑记录（2026-06-25）**：
+- Job `859653` · 分区 `x86_64_2cpu` · **COMPLETED** · 12s
+- κ 仿真三论断与本地一致（FDR 0.021/0.083/0.188；U 捕获 0.864）
+
+日志：`~/3W/<JOBID>.out` / `~/3W/<JOBID>.err`
+
+---
+
+## 5. 外网 / 数据
+
+登录节点可直连：anaconda ✅ · github ✅ · pypi ✅ → CellxGene 公共数据可在服务器拉取。
+
+大文件也可用 Web 平台「数据管理」上传/下载。
+
+---
+
+## 6. 常用命令
+
+```bash
+ssh sysu-hpc
+sinfo -o '%P %a %l %D %c %G'
+squeue -u fsby1lyf
+scancel <JOBID>
+conda env list
+```
+
+---
+
+## 7. 待办
+
+- [x] SSH 免密接入
+- [x] Miniconda + env `3w`
+- [x] 项目 `~/3W` git 同步
+- [x] Slurm CPU 模板试跑
+- [ ] Web 平台改密码
+- [ ] Phase 1：CellxGene 拉 ≥3 组织 → κ 真数据阳性对照
+
+---
+
+## 8. 论文致谢（手册要求）
+
+> 本研究工作得到中山大学高性能计算公共平台（深圳校区）支持。
+> Supported by High-performance Computing Public Platform (Shenzhen Campus) of Sun Yat-sen University.
