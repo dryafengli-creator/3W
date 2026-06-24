@@ -11,8 +11,9 @@
 # 3W Phase-1 CPU job template (kappa / conservation analysis)
 # Manual: heavy compute MUST go through sbatch, not login node.
 
-set -euo pipefail
+set -eo pipefail
 source ~/.bashrc
+set -u
 conda activate 3w
 export PYTHONPATH="${HOME}/3W:${PYTHONPATH:-}"
 export OMP_NUM_THREADS=1
