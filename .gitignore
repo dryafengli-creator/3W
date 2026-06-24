@@ -1,0 +1,30 @@
+# Data (lives on server; never commit large files)
+data/
+*.h5ad
+*.h5
+*.loom
+*.mtx
+*.npy
+*.npz
+*.pt
+*.ckpt
+
+# Results: keep audit text, drop heavy artifacts
+results/**/*.h5ad
+results/**/*.png
+results/**/*.pdf
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+.venv/
+venv/
+env/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
